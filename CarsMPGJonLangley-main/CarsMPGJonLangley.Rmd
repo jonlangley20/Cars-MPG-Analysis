@@ -1,0 +1,183 @@
+---
+title: "Factor's In a Car's MPG"
+author: "Jonathan Langley"
+date: "3/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Introduction
+In this project I will be examining the Motor Trend Car Dataset to examine if and how a car's weight and miles per gallon are related, and furthermore to see if their relationship is significantly dependent on the number of cylinders
+
+##Step 1: Importing Dataset
+```{r}
+cars <- read.csv("mtcars.csv")
+head(cars)
+```
+*Source:* 1974 Motor Trend US Magazine[^1]
+
+```{r}
+
+
+
+cars_weight <- cars$wt
+cars_mpg <- cars$mpg
+cars_cylinder <- cars$cyl
+(hist(cars_weight))
+(hist(cars_mpg))
+(hist(cars_cylinder))
+mean(cars_weight)
+mean(cars_mpg)
+mean(cars_cylinder)
+
+```
+```{r}
+options(scipen = '100',digits = '4')
+
+
+(plot(cars_weight, cars_mpg, xlab = 'Weight of car',ylab='Miles per Gallon'))
+(cor(cars_weight,cars_mpg))
+#initial analysis appears to show evident negative correlation between mpg and the increased weight of the car
+```
+```{r}
+
+(cov(cars_weight,cars_mpg))
+
+#covariance measures the directional relationship between two variables, having a strong negative covariance further indicates that weight and mpg are inverse variables showing a relationship between them
+```
+```{r}
+
+cars_only_essential <- cars[,c('mpg','wt','cyl')]
+#get only necessary columns before standardizing
+z_cars <- cars_only_essential
+for(i in 1:2)
+{
+  z_cars[,i] <- (cars_only_essential[,i] - mean(cars_only_essential[,i]))/sd(cars_only_essential[,i])
+}
+head(z_cars)
+plot(z_cars$wt,z_cars$mpg)
+#As we can see, the plot is basically identical whether or not it was standardized, so there is no reason to continue using the standardized data
+```
+
+
+
+
+##Initial Linear Regression Model
+```{r}
+(carsModel1 <- lm(cars_mpg ~ cars_weight))
+summary(carsModel1)
+plot(cars_weight,cars_mpg)
+abline(lm(cars_mpg~cars_weight))
+
+#tiny p-value from this linear model allows us to reject the null hypothesis that the variables mpg and weight have no relation to each other.  This means that there is strong reason to believe that the given value weight causes change to the dependent mpg value.
+
+#fairly accurate linear model indicates accurate regression, and therefore strong relationship between two variables
+```
+```{r}
+#Descriptive statistics of mpg, weight, and cyl
+var(cars_cylinder)
+var(cars_mpg)
+var(cars_weight)
+mean(cars_cylinder)
+mean(cars_mpg)
+mean(cars_weight)
+#this data is very useful to help me understand the layout of each specific column, and to see how the data is spread out, and what differences the mean and variance have to each other
+```
+
+#Body Part 2: Analyzing Potential Influence of Cylinder Count
+```{r}
+#install.packages("scatterplot3d") # Install
+library("scatterplot3d")
+
+cars_only_essential <- cars[,c('mpg','cyl','wt')]
+
+#head(cars_only_essential)
+#Now that I've analyzed the relationship between mpg and weight, I will also check to see if the relationship between these two values depends on the number of cylinders
+```
+```{r}
+(pairs(cars_only_essential))
+
+scatterplot3d(
+  x=cars_weight, y=cars_mpg, z=cars_cylinder,
+  xlab='Weight (wt)',
+  ylab='Miles per Gallon (mpg)',
+  zlab='Number of Cylinders (cyl)',
+  main='Weight vs Miles per Gallon vs Number of Cylinders',
+  type='h',
+  color=cars_cylinder,
+  angle=45
+)
+
+scatterplot3d(
+  x=cars_weight, y=cars_mpg, z=cars_cylinder,
+  xlab='Weight (wt)',
+  ylab='Miles per Gallon (mpg)',
+  zlab='Number of Cylinders (cyl)',
+  main='Weight vs Miles per Gallon vs Number of Cylinders',
+  type='h',
+  color=cars_cylinder,
+  angle=135
+)
+#While the pairs plot doesn't tell me a whole lot since the cylinders column is split into 3 different sets, the 3d plot shows me quite a bit.  I can quite clearly see that lower cylinder count is directly related to lower weight AND significantly higher miles per gallon, while high cylinder count is directly related to higher weight and far lower mpg,  I will need to investigate further
+```
+```{r}
+#Here we are going to perform analysis by groups on the cylinder column.  I have split up the data into three groups based on whether the cylinders in the car are 4,6, or 8.
+cars_essential_4 <- cars_only_essential[ which(cars_only_essential$cyl == 4),]
+cars_essential_6 <- cars_only_essential[ which(cars_only_essential$cyl == 6),]
+cars_essential_8 <- cars_only_essential[ which(cars_only_essential$cyl == 8),]
+
+```
+```{r}
+ 
+(plot(cars_essential_4$wt,cars_essential_4$mpg,
+      xlab='Weight (wt)',
+  ylab='Miles per Gallon (mpg)',main = 'Data with 4 Cylinders',))
+(plot(cars_essential_6$wt,cars_essential_6$mpg,
+      xlab='Weight (wt)',
+  ylab='Miles per Gallon (mpg)',main = 'Data with 6 Cylinders',))
+(plot(cars_essential_8$wt,cars_essential_8$mpg,
+      xlab='Weight (wt)',
+  ylab='Miles per Gallon (mpg)',main = 'Data with 8 Cylinders',))
+cor(cars_essential_4$wt,cars_essential_4$mpg)
+cor(cars_essential_6$wt,cars_essential_6$mpg)
+cor(cars_essential_8$wt,cars_essential_8$mpg)
+plot(
+  x=cars$wt, y=cars$mpg,
+  xlab='Weight (wt)',
+  ylab='Miles per Gallon (mpg)',
+ 
+  main='Weight vs Miles per Gallon, Colored By Cylinder',
+ 
+  col=cars_cylinder
+  
+)
+#The plot is colored by cylinder count, with blue being 4 cylinder, magenta being 6 cylinders, and grey being 8 cylinders.
+
+#While I mostly did this for my own visual analysis, it's very interesting to note that the correlation between weight and mpg decreases as the cylinder count goes up.  One can also see that the data for 4 cylinders has a very linear trend, 6 cylinders has a less uniform but somewhat linear trend, and 8 cylinders has a somewhat sporadic distribution.  I will now generate linear models from each of these three subgroups and compare them
+```
+```{r}
+overall_mod <- lm(cars_only_essential$mpg ~ cars_only_essential$wt+cars_only_essential$cyl)
+mod_4_cyl <- lm(cars_essential_4$mpg ~ cars_essential_4$wt)
+mod_6_cyl <- lm(cars_essential_6$mpg ~ cars_essential_6$wt)
+mod_8_cyl <- lm(cars_essential_8$mpg ~ cars_essential_8$wt)
+plot(cars_weight,cars_mpg)
+abline(overall_mod, col= 'red')
+abline(mod_4_cyl, col = 'blue')
+abline(mod_6_cyl, col = 'green')
+abline(mod_8_cyl, col = 'black')
+(summary(overall_mod))
+print(summary(mod_4_cyl))
+print(summary(mod_6_cyl))
+print(summary(mod_8_cyl))
+#Here I have done multiple linear models based on using all of the cylinder data, one done on just the rows of cars with 4 cylinders, one for those with 6 cylinders, and one for those with 8 cylinders.  The most striking quantitative detail for me is that the p-values heavily shift around from one model to the next, indicating quite clearly that there is indeed a relationship dependency on the number of cylinders.
+
+#If there were no relationship between weight/mpg and cylinders, then there would be almost no noticeable difference between the linear models of each separate cylinder count, and this is quite clearly not so.
+```
+
+##Conclusion
+  In this project I have conclusively determined both that the relationship between weight and miles per gallon is a strong negative inverse relationship, and that this relationship does indeed depends on the number of cylinders.  The body of my exploration was split into two parts, the first part focusing solely on the relationship between weight and mpg.  My initial plot with weight as the independent and mpg as the dependent showed a very pronounced downward trend, with a sample correlation coefficient of -.867, an extremely strong negative correlation indicator.  Furthermore, finding the covariance of these two variables yielded a value of -5, further supporting my results that weight and mpg have an inverse relationship, as one increases the other decreases.  To further explore my results, I used a linear regression model with mpg as the dependent and weight as the independent variable, and plotted the line on the data finding it to be highly accurate, and with a p-value of practically 0 and an r-squared value of .75, a solid statistically significant fact that mpg is indeed related to weight, and considering the previously discovered data, negatively so.
+  In part 2 of my body I explored if/how their relationship depends on the number of cylinders.  To take an initial glance at understanding if a trend was present, I plotted a 3d model of weight, mpg, and cylinder count.  It istantly became apparent that cylinder count plays a large role in influencing weight/mpg, as the sections of the graph color coded to 4 cyl, 6 cyl, and 8 cyl were significantly different.  The section for 4 cylinders showed a very high mpg and a very low weight, the 6 cylinder shows a higher weight but lower mpg, and the 8 cylinder section shows a compratively far lower mpg and much higher weight.  I analyzed this graph and determined that without a doubt cylinder count plays a significant role in influencing the relationship between weight and mpg.  I then did comparison by grouping, making subsets of the initial data based on what the cylinder count was, splitting the data into  4, 6, and 8 cylinder tables.  Checking correlation on these three tables showed that while the correlation between weight and mpg was still a strong negative, it decreased in strength as the cylinder count increased, indicating to me that perhaps the influence of cylinders on the relationship of weight/mpg was most pronounced on smaller cylinders.  I surmised that this could be due to the fact that there cars with 4 cylinders are always smaller, while 8 cylinder engines can be put in any car from a sleek coupe to a jacked up pickup, diminishing the comparative accuracy.  All of this was helpful, but the most pronounced indicator to me that their relationhip is significantly influenced by cylinder count came when I ran a linear regression model on each cylinder subset, and found that the LM's for 4, 6, and 8, cylinders, and the LM for the whole dataset, had vastly different p-values and r-squared values.  If cylinder were irrelevant then one would expect minimally noticeable changes to the LMs' efficacy, however the wide variation was clear indication that cylinder count statistically significantly affected the relationship between weight/mpg.
+  Esimators Unbiased?  The estimators that we used are sample covariance and sample correlation.  Sample covariance is an unbiased estimator of the population covariance by definition because the value expected from the sample covariance formula is identical to that of the population covariance.  However, sample correlation is a biased estimator between the variables as the population correlation does not equal the expected value produced by the sample correlation.
